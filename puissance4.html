@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Puissance 4 — vs Bot</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background: #060818;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 20%, rgba(26, 86, 176, 0.35) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(100, 30, 150, 0.3) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(10, 20, 60, 0.5) 0%, transparent 70%);
+      animation: bgShift 10s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+
+    @keyframes bgShift {
+      0%   { opacity: 1; filter: hue-rotate(0deg); }
+      50%  { opacity: 0.85; filter: hue-rotate(20deg); }
+      100% { opacity: 1; filter: hue-rotate(-15deg); }
+    }
+
+    .bubble {
+      position: fixed;
+      border-radius: 50%;
+      opacity: 0.07;
+      animation: float linear infinite;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes float {
+      0%   { transform: translateY(110vh) scale(1); opacity: 0; }
+      10%  { opacity: 0.07; }
+      90%  { opacity: 0.07; }
+      100% { transform: translateY(-10vh) scale(1.1); opacity: 0; }
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #fff;
+      margin-bottom: 0.3rem;
+      text-shadow: 0 0 30px rgba(100, 160, 255, 0.5);
+    }
+
+    .subtitle {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    #score {
+      display: flex;
+      gap: 32px;
+      margin-bottom: 1rem;
+    }
+
+    .score-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .score-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .score-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .score-num {
+      font-weight: 700;
+      font-size: 22px;
+      color: #fff;
+    }
+
+    #difficulty {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+    }
+
+    #difficulty select {
+      font-size: 12px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+
+    #status {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.55);
+      min-height: 22px;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    #board-wrap {
+      position: relative;
+      margin-bottom: 1.2rem;
+    }
+
+    .col-btn {
+      position: absolute;
+      top: -42px;
+      left: 10px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .col-btn button {
+      width: 72px;
+      height: 30px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      backdrop-filter: blur(4px);
+    }
+
+    .col-btn button:hover:not(:disabled) {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    .col-btn button:disabled {
+      opacity: 0.2;
+      cursor: default;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(7, 72px);
+      grid-template-rows: repeat(6, 72px);
+      gap: 6px;
+      background: linear-gradient(135deg, #0d3a8a 0%, #1a56b0 50%, #0d3a8a 100%);
+      padding: 10px;
+      border-radius: 16px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 20px 60px rgba(0,0,0,0.6),
+        0 0 80px rgba(26, 86, 176, 0.3);
+    }
+
+    .cell {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #060818;
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.5);
+      transition: background 0.22s ease;
+    }
+
+    .cell.p1 {
+      background: radial-gradient(circle at 35% 35%, #ff6b6b, #e63946);
+      box-shadow: 0 0 16px rgba(230, 57, 70, 0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
+    }
+
+    .cell.p2 {
+      background: radial-gradient(circle at 35% 35%, #ffe066, #f4d03f);
+      box-shadow: 0 0 16px rgba(244, 208, 63, 0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
+    }
+
+    .cell.win {
+      animation: pulse 0.55s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { opacity: 1; transform: scale(1); }
+      to   { opacity: 0.6; transform: scale(0.92); }
+    }
+
+    #controls button {
+      padding: 10px 28px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: background 0.15s, color 0.15s;
+      backdrop-filter: blur(4px);
+    }
+
+    #controls button:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+
+    @media (max-width: 580px) {
+      #board {
+        grid-template-columns: repeat(7, 44px);
+        grid-template-rows: repeat(6, 44px);
+      }
+      .cell { width: 44px; height: 44px; }
+      .col-btn button { width: 44px; font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bubble" style="width:300px;height:300px;background:#1a56b0;left:5%;animation-duration:18s;animation-delay:0s;"></div>
+  <div class="bubble" style="width:180px;height:180px;background:#7b2ff7;left:75%;animation-duration:22s;animation-delay:4s;"></div>
+  <div class="bubble" style="width:120px;height:120px;background:#e63946;left:40%;animation-duration:15s;animation-delay:8s;"></div>
+  <div class="bubble" style="width:200px;height:200px;background:#1a56b0;left:60%;animation-duration:25s;animation-delay:2s;"></div>
+  <div class="bubble" style="width:80px;height:80px;background:#f4d03f;left:20%;animation-duration:19s;animation-delay:11s;"></div>
+  <div class="bubble" style="width:140px;height:140px;background:#534AB7;left:88%;animation-duration:21s;animation-delay:6s;"></div>
+
+  <div id="app">
+    <h1>Puissance 4</h1>
+    <div class="subtitle">Joueur vs Bot</div>
+
+    <div id="score">
+      <div class="score-box">
+        <div class="score-label">Vous</div>
+        <div class="score-inner">
+          <div class="score-dot" style="background:#e63946;box-shadow:0 0 8px #e63946;"></div>
+          <span class="score-num" id="s1">0</span>
+        </div>
+      </div>
+      <div class="score-box">
+        <div class="score-label">Bot</div>
+        <div class="score-inner">
+          <div class="score-dot" style="background:#f4d03f;box-shadow:0 0 8px #f4d03f;"></div>
+          <span class="score-num" id="s2">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="difficulty">
+      Difficulté :
+      <select id="diff">
+        <option value="1">Facile</option>
+        <option value="3" selected>Moyen</option>
+        <option value="5">Difficile</option>
+      </select>
+    </div>
+
+    <div id="status">À vous de jouer !</div>
+
+    <div id="board-wrap">
+      <div class="col-btn" id="col-btns"></div>
+      <div id="board"></div>
+    </div>
+
+    <div id="controls">
+      <button onclick="resetGame()">Nouvelle partie</button>
+    </div>
+  </div>
+
+  <script>
+    const ROWS = 6, COLS = 7;
+    let board, currentPlayer, gameOver, thinking = false;
+    let scores = { 1: 0, 2: 0 };
+
+    function initBoard() {
+      board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    }
+
+    function resetGame() {
+      initBoard();
+      currentPlayer = 1;
+      gameOver = false;
+      thinking = false;
+      render();
+      setStatus("À vous de jouer !");
+    }
+
+    function setStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    function render() {
+      const boardEl = document.getElementById('board');
+      boardEl.innerHTML = '';
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell' +
+            (board[r][c] === 1 ? ' p1' : board[r][c] === 2 ? ' p2' : '');
+          cell.id = `cell-${r}-${c}`;
+          boardEl.appendChild(cell);
+        }
+      }
+      updateColBtns();
+    }
+
+    function updateColBtns() {
+      const wrap = document.getElementById('col-btns');
+      wrap.innerHTML = '';
+      for (let c = 0; c < COLS; c++) {
+        const btn = document.createElement('button');
+        btn.textContent = '▼';
+        btn.disabled = gameOver || thinking || board[0][c] !== 0;
+        btn.onclick = () => playerMove(c);
+        wrap.appendChild(btn);
+      }
+    }
+
+    function drop(col, player) {
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][col] === 0) { board[r][col] = player; return r; }
+      }
+      return -1;
+    }
+
+    function checkWin(b, player) {
+      const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (b[r][c] !== player) continue;
+          for (const [dr, dc] of dirs) {
+            let cnt = 1, cells = [[r, c]];
+            for (let i = 1; i < 4; i++) {
+              const nr = r + dr * i, nc = c + dc * i;
+              if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || b[nr][nc] !== player) break;
+              cnt++; cells.push([nr, nc]);
+            }
+            if (cnt === 4) return cells;
+          }
+        }
+      }
+      return null;
+    }
+
+    function isFull(b) { return b[0].every(v => v !== 0); }
+
+    function scoreWindow(win, player) {
+      const opp = player === 1 ? 2 : 1;
+      const p = win.filter(v => v === player).length;
+      const o = win.filter(v => v === opp).length;
+      const e = win.filter(v => v === 0).length;
+      if (p === 4) return 100;
+      if (p === 3 && e === 1) return 5;
+      if (p === 2 && e === 2) return 2;
+      if (o === 3 && e === 1) return -4;
+      return 0;
+    }
+
+    function scoreBoard(b, player) {
+      let score = 0;
+      const centerCol = Math.floor(COLS / 2);
+      score += b.map(r => r[centerCol]).filter(v => v === player).length * 3;
+      for (let r = 0; r < ROWS; r++)
+        for (let c = 0; c <= COLS - 4; c++)
+          score += scoreWindow([b[r][c], b[r][c+1], b[r][c+2], b[r][c+3]], player);
+      for (let r = 0; r <= ROWS - 4; r++)
+        for (let c = 0; c < COLS; c++)
+          score += scoreWindow([b[r][c], b[r+1][c], b[r+2][c], b[r+3][c]], player);
+      for (let r = 0; r <= ROWS - 4; r++)
+        for (let c = 0; c <= COLS - 4; c++)
+          score += scoreWindow([b[r][c], b[r+1][c+1], b[r+2][c+2], b[r+3][c+3]], player);
+      for (let r = 3; r < ROWS; r++)
+        for (let c = 0; c <= COLS - 4; c++)
+          score += scoreWindow([b[r][c], b[r-1][c+1], b[r-2][c+2], b[r-3][c+3]], player);
+      return score;
+    }
+
+    function copyBoard(b) { return b.map(r => [...r]); }
+
+    function getValidCols(b) {
+      return Array.from({ length: COLS }, (_, i) => i).filter(c => b[0][c] === 0);
+    }
+
+    function minimax(b, depth, alpha, beta, maximizing) {
+      const w1 = checkWin(b, 1), w2 = checkWin(b, 2);
+      if (w2) return 100000 + depth;
+      if (w1) return -100000 - depth;
+      if (isFull(b) || depth === 0) return scoreBoard(b, 2);
+      const cols = getValidCols(b);
+      if (maximizing) {
+        let val = -Infinity;
+        for (const c of cols) {
+          const nb = copyBoard(b);
+          let r = ROWS - 1; while (r >= 0 && nb[r][c] !== 0) r--; nb[r][c] = 2;
+          val = Math.max(val, minimax(nb, depth - 1, alpha, beta, false));
+          alpha = Math.max(alpha, val);
+          if (alpha >= beta) break;
+        }
+        return val;
+      } else {
+        let val = Infinity;
+        for (const c of cols) {
+          const nb = copyBoard(b);
+          let r = ROWS - 1; while (r >= 0 && nb[r][c] !== 0) r--; nb[r][c] = 1;
+          val = Math.min(val, minimax(nb, depth - 1, alpha, beta, true));
+          beta = Math.min(beta, val);
+          if (alpha >= beta) break;
+        }
+        return val;
+      }
+    }
+
+    function botMove() {
+      const depth = parseInt(document.getElementById('diff').value);
+      const cols = getValidCols(board);
+      let bestScore = -Infinity, bestCol = cols[Math.floor(cols.length / 2)];
+      for (const c of cols) {
+        const nb = copyBoard(board);
+        let r = ROWS - 1; while (r >= 0 && nb[r][c] !== 0) r--; nb[r][c] = 2;
+        const s = minimax(nb, depth - 1, -Infinity, Infinity, false);
+        if (s > bestScore) { bestScore = s; bestCol = c; }
+      }
+      return bestCol;
+    }
+
+    function highlightWin(cells) {
+      cells.forEach(([r, c]) => {
+        const el = document.getElementById(`cell-${r}-${c}`);
+        if (el) el.classList.add('win');
+      });
+    }
+
+    function playerMove(col) {
+      if (gameOver || thinking || board[0][col] !== 0) return;
+      drop(col, 1);
+      render();
+      const w = checkWin(board, 1);
+      if (w) {
+        highlightWin(w); gameOver = true;
+        scores[1]++; document.getElementById('s1').textContent = scores[1];
+        setStatus("Vous avez gagné ! 🎉"); return;
+      }
+      if (isFull(board)) { gameOver = true; setStatus("Match nul !"); return; }
+      thinking = true;
+      updateColBtns();
+      setStatus("Le bot réfléchit...");
+      setTimeout(() => {
+        drop(botMove(), 2);
+        render();
+        const w2 = checkWin(board, 2);
+        if (w2) {
+          highlightWin(w2); gameOver = true;
+          scores[2]++; document.getElementById('s2').textContent = scores[2];
+          setStatus("Le bot a gagné !"); return;
+        }
+        if (isFull(board)) { gameOver = true; setStatus("Match nul !"); return; }
+        thinking = false;
+        updateColBtns();
+        setStatus("À vous de jouer !");
+      }, 150);
+    }
+
+    resetGame();
+  </script>
+
+</body>
+</html>
